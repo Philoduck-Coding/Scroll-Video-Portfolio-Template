@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio | Scroll Animation 3D</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;600;700;900&display=swap');
+
+        :root {
+            --bg: #050510;
+            --surface: #0a0a1a;
+            --text: #ffffff;
+            --text-secondary: #8888aa;
+            --accent: #7c3aed;
+            --accent2: #06b6d4;
+            --accent3: #ec4899;
+            --border: rgba(255,255,255,0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* ============ CUSTOM CURSOR ============ */
+        .cursor {
+            width: 30px;
+            height: 30px;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transition: width 0.3s, height 0.3s, border-color 0.3s;
+            mix-blend-mode: difference;
+            backdrop-filter: invert(1);
+        }
+
+        .cursor-dot {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            transition: transform 0.15s ease;
+        }
+
+        .cursor.hover {
+            width: 60px;
+            height: 60px;
+            border-color: var(--accent);
+            background: rgba(124,58,237,0.1);
+        }
+
+        /* ============ SCROLL PROGRESS CANVAS ============ */
+        #progressCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+
+        /* ============ NAVIGATION ============ */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+            padding: 1.8rem 4rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        nav.floating {
+            background: rgba(10,10,30,0.7);
+            backdrop-filter: blur(30px);
+            padding: 1rem 4rem;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, var(--accent), var(--accent3));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            position: relative;
+            padding: 0.5rem 0;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border-radius: 1px;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        /* Hamburger Menu für Mobile */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            z-index: 101;
+        }
+
+        .menu-toggle span {
+            width: 30px;
+            height: 2px;
+            background: white;
+            transition: all 0.3s;
+            border-radius: 2px;
+        }
+
+        /* ============ CANVAS ANIMATION SECTION ============ */
+        .scroll-canvas-section {
+            height: 600vh;
+            position: relative;
+        }
+
+        .sticky-canvas-container {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        #mainCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .canvas-overlay h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(3rem, 12vw, 10rem);
+            font-weight: 900;
+            letter-spacing: -4px;
+            line-height: 0.9;
+            text-align: center;
+            background: linear-gradient(135deg, 
+                var(--accent) 0%, 
+                var(--accent2) 50%, 
+                var(--accent3) 100%
+            );
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientFlow 4s ease infinite;
+        }
+
+        @keyframes gradientFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .canvas-overlay .scroll-hint {
+            margin-top: 2rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--text-secondary);
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        /* ============ PROJECTS SECTION ============ */
+        .projects-section {
+            min-height: 100vh;
+            background: var(--bg);
+            position: relative;
+            z-index: 20;
+            padding: 10rem 4rem;
+        }
+
+        .section-header {
+            margin-bottom: 6rem;
+        }
+
+        .section-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--accent);
+            margin-bottom: 1rem;
+            font-weight: 600;
+        }
+
+        .section-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            font-weight: 700;
+            letter-spacing: -2px;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+        }
+
+        .section-line {
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            border-radius: 2px;
+        }
+
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 2rem;
+        }
+
+        .project-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 2.5rem;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            group: true;
+        }
+
+        .project-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), 
+                rgba(124,58,237,0.15) 0%, 
+                transparent 50%
+            );
+            opacity: 0;
+            transition: opacity 0.5s;
+            pointer-events: none;
+        }
+
+        .project-card:hover::before {
+            opacity: 1;
+        }
+
+        .project-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            border-color: rgba(124,58,237,0.4);
+            box-shadow: 0 30px 60px rgba(124,58,237,0.15);
+        }
+
+        .project-number {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 4rem;
+            font-weight: 900;
+            opacity: 0.05;
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            transition: opacity 0.5s;
+            color: var(--accent);
+        }
+
+        .project-card:hover .project-number {
+            opacity: 0.2;
+        }
+
+        .project-icon {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            display: block;
+            position: relative;
+            z-index: 1;
+        }
+
+        .project-card h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1.6rem;
+            margin-bottom: 0.8rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .project-card p {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            position: relative;
+            z-index: 1;
+        }
+
+        .project-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+
+        .project-tag {
+            padding: 0.4rem 1rem;
+            background: rgba(124,58,237,0.1);
+            border: 1px solid rgba(124,58,237,0.2);
+            border-radius: 50px;
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        /* ============ SKILLS SECTION ============ */
+        .skills-section {
+            min-height: 100vh;
+            background: var(--bg);
+            position: relative;
+            z-index: 20;
+            padding: 10rem 4rem;
+            display: flex;
+            gap: 6rem;
+            align-items: center;
+        }
+
+        .skills-visual {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #skillsCanvas {
+            width: 450px;
+            height: 450px;
+        }
+
+        .skills-content {
+            flex: 1;
+        }
+
+        .skill-item {
+            margin-bottom: 2rem;
+        }
+
+        .skill-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .skill-bar-container {
+            height: 8px;
+            background: var(--surface);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .skill-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent3));
+            border-radius: 4px;
+            width: 0%;
+            transition: width 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .skill-bar-fill::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: -3px;
+            width: 14px;
+            height: 14px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent);
+        }
+
+        .skill-bar-glow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            width: 100%;
+            animation: shimmerBar 2s infinite;
+        }
+
+        @keyframes shimmerBar {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(200%); }
+        }
+
+        /* ============ ABOUT SECTION ============ */
+        .about-section {
+            min-height: 100vh;
+            background: var(--bg);
+            position: relative;
+            z-index: 20;
+            padding: 10rem 4rem;
+            display: flex;
+            gap: 6rem;
+            align-items: center;
+        }
+
+        .about-text {
+            flex: 1;
+        }
+
+        .about-text h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(2.5rem, 5vw, 4rem);
+            margin-bottom: 2rem;
+            letter-spacing: -1px;
+        }
+
+        .about-text p {
+            color: var(--text-secondary);
+            font-size: 1.15rem;
+            line-height: 1.9;
+            margin-bottom: 1.5rem;
+        }
+
+        .highlight {
+            color: var(--accent2);
+            font-weight: 600;
+        }
+
+        .about-visual {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #aboutCanvas {
+            width: 400px;
+            height: 400px;
+        }
+
+        .glow-button {
+            margin-top: 2rem;
+            padding: 1.2rem 3rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent3));
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glow-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 50px rgba(124,58,237,0.5);
+        }
+
+        .glow-button:active {
+            transform: translateY(-1px);
+        }
+
+        /* ============ CONTACT SECTION ============ */
+        .contact-section {
+            min-height: 100vh;
+            background: var(--bg);
+            position: relative;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4rem;
+        }
+
+        .contact-content h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 900;
+            letter-spacing: -3px;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .contact-content p {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            margin-bottom: 3rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+        }
+
+        .social-link {
+            width: 60px;
+            height: 60px;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.4s;
+            background: var(--surface);
+        }
+
+        .social-link:hover {
+            border-color: var(--accent);
+            color: white;
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(124,58,237,0.3);
+            background: var(--accent);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            position: relative;
+            z-index: 20;
+            background: var(--bg);
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 968px) {
+            nav {
+                padding: 1.5rem 2rem;
+            }
+
+            nav.floating {
+                padding: 1rem 2rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .menu-toggle {
+                display: flex;
+            }
+
+            .nav-links.active {
+                display: flex;
+                flex-direction: column;
+                position: fixed;
+                top: 0;
+                right: 0;
+                width: 100%;
+                height: 100vh;
+                background: rgba(5,5,16,0.95);
+                backdrop-filter: blur(30px);
+                align-items: center;
+                justify-content: center;
+                gap: 3rem;
+                z-index: 100;
+            }
+
+            .nav-links.active a {
+                font-size: 1.5rem;
+            }
+
+            .projects-section,
+            .skills-section,
+            .about-section {
+                padding: 6rem 1.5rem;
+            }
+
+            .skills-section,
+            .about-section {
+                flex-direction: column;
+            }
+
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+
+            #skillsCanvas,
+            #aboutCanvas {
+                width: 300px;
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Custom Cursor -->
+    <div class="cursor" id="cursor"></div>
+    <div class="cursor-dot" id="cursorDot"></div>
+
+    <!-- Progress Canvas -->
+    <canvas id="progressCanvas"></canvas>
+
+    <!-- Navigation -->
+    <nav id="navbar">
+        <div class="logo">DEV.X</div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#projects">Work</a></li>
+            <li><a href="#skills">Skills</a></li>
+            <li><a href="#about">About</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+        <div class="menu-toggle" id="menuToggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </nav>
+
+    <!-- ===== SCROLL CANVAS SECTION (DER KRASSE EFFEKT) ===== -->
+    <section class="scroll-canvas-section" id="home">
+        <div class="sticky-canvas-container">
+            <canvas id="mainCanvas"></canvas>
+            <div class="canvas-overlay" id="canvasOverlay">
+                <h1>CREATE<br>MAGIC</h1>
+                <p class="scroll-hint">↓ Scroll to explore ↓</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== PROJECTS ===== -->
+    <section class="projects-section" id="projects">
+        <div class="section-header">
+            <div class="section-label">Portfolio</div>
+            <h2 class="section-title">Ausgewählte<br>Arbeiten</h2>
+            <div class="section-line"></div>
+        </div>
+
+        <div class="projects-grid">
+            <div class="project-card" data-mouse-track>
+                <span class="project-number">01</span>
+                <span class="project-icon">🎨</span>
+                <h3>Brand Identity System</h3>
+                <p>Komplettes Design System für ein Tech-Startup mit 200+ Komponenten</p>
+                <div class="project-tags">
+                    <span class="project-tag">Figma</span>
+                    <span class="project-tag">Design System</span>
+                    <span class="project-tag">Branding</span>
+                </div>
+            </div>
+
+            <div class="project-card" data-mouse-track>
+                <span class="project-number">02</span>
+                <span class="project-icon">💻</span>
+                <h3>E-Commerce 3D Viewer</h3>
+                <p>Interaktiver 3D-Produktviewer mit AR-Integration für Online-Shop</p>
+                <div class="project-tags">
+                    <span class="project-tag">Three.js</span>
+                    <span class="project-tag">React</span>
+                    <span class="project-tag">WebXR</span>
+                </div>
+            </div>
+
+            <div class="project-card" data-mouse-track>
+                <span class="project-number">03</span>
+                <span class="project-icon">📱</span>
+                <h3>FinTech Dashboard</h3>
+                <p>Real-time Analytics Dashboard mit KI-gestützten Vorhersagen</p>
+                <div class="project-tags">
+                    <span class="project-tag">Vue.js</span>
+                    <span class="project-tag">D3.js</span>
+                    <span class="project-tag">AI/ML</span>
+                </div>
+            </div>
+
+            <div class="project-card" data-mouse-track>
+                <span class="project-number">04</span>
+                <span class="project-icon">🎮</span>
+                <h3>WebGL Game Engine</h3>
+                <p>Custom 2D/3D Game Engine für browserbasierte Spiele</p>
+                <div class="project-tags">
+                    <span class="project-tag">WebGL</span>
+                    <span class="project-tag">TypeScript</span>
+                    <span class="project-tag">Canvas</span>
+                </div>
+            </div>
+
+            <div class="project-card" data-mouse-track>
+                <span class="project-number">05</span>
+                <span class="project-icon">🤖</span>
+                <h3>AI Content Platform</h3>
+                <p>KI-gestützte Content-Management-Plattform mit NLP</p>
+                <div class="project-tags">
+                    <span class="project-tag">Python</span>
+                    <span class="project-tag">NLP</span>
+                    <span class="project-tag">React</span>
+                </div>
+            </div>
+
+            <div class="project-card" data-mouse-track>
+                <span class="project-number">06</span>
+                <span class="project-icon">🚀</span>
+                <h3>SaaS Landing Page</h3>
+                <p>High-Converting Landing Page mit Micro-Interactions</p>
+                <div class="project-tags">
+                    <span class="project-tag">Next.js</span>
+                    <span class="project-tag">GSAP</span>
+                    <span class="project-tag">Framer</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== SKILLS ===== -->
+    <section class="skills-section" id="skills">
+        <div class="skills-visual">
+            <canvas id="skillsCanvas"></canvas>
+        </div>
+        <div class="skills-content">
+            <div class="section-label">Expertise</div>
+            <h2 class="section-title">Skills &<br>Technologies</h2>
+            <div class="section-line" style="margin-bottom: 3rem;"></div>
+
+            <div class="skill-item">
+                <div class="skill-header">
+                    <span>React / Next.js</span>
+                    <span>95%</span>
+                </div>
+                <div class="skill-bar-container">
+                    <div class="skill-bar-fill" data-width="95">
+                        <div class="skill-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="skill-item">
+                <div class="skill-header">
+                    <span>Three.js / WebGL</span>
+                    <span>88%</span>
+                </div>
+                <div class="skill-bar-container">
+                    <div class="skill-bar-fill" data-width="88">
+                        <div class="skill-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="skill-item">
+                <div class="skill-header">
+                    <span>GSAP / Animation</span>
+                    <span>92%</span>
+                </div>
+                <div class="skill-bar-container">
+                    <div class="skill-bar-fill" data-width="92">
+                        <div class="skill-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="skill-item">
+                <div class="skill-header">
+                    <span>Node.js / Backend</span>
+                    <span>85%</span>
+                </div>
+                <div class="skill-bar-container">
+                    <div class="skill-bar-fill" data-width="85">
+                        <div class="skill-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="skill-item">
+                <div class="skill-header">
+                    <span>UI/UX Design</span>
+                    <span>90%</span>
+                </div>
+                <div class="skill-bar-container">
+                    <div class="skill-bar-fill" data-width="90">
+                        <div class="skill-bar-glow"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== ABOUT ===== -->
+    <section class="about-section" id="about">
+        <div class="about-text">
+            <div class="section-label">About Me</div>
+            <h2>Creative Developer<br>& Digital Artist</h2>
+            <div class="section-line" style="margin-bottom: 2rem;"></div>
+            <p>
+                Ich bin ein <span class="highlight">Creative Developer</span> mit einer 
+                Leidenschaft für die Schnittstelle zwischen <span class="highlight">Design</span> 
+                und <span class="highlight">Code</span>.
+            </p>
+            <p>
+                Meine Spezialität sind <span class="highlight">interaktive Web-Experiences</span>, 
+                die nicht nur funktionieren, sondern auch <span class="highlight">begeistern</span>. 
+                Von 3D-Visualisierungen bis zu komplexen Animationen – 
+                ich liebe es, Grenzen zu verschieben.
+            </p>
+            <p>
+                Mit über <span class="highlight">5 Jahren Erfahrung</span> in der 
+                Webentwicklung habe ich für Startups, Agenturen und 
+                internationale Brands gearbeitet.
+            </p>
+            <button class="glow-button" onclick="location.href='#contact'">
+                Let's talk →
+            </button>
+        </div>
+        <div class="about-visual">
+            <canvas id="aboutCanvas"></canvas>
+        </div>
+    </section>
+
+    <!-- ===== CONTACT ===== -->
+    <section class="contact-section" id="contact">
+        <div class="contact-content">
+            <h2>Let's create<br>something amazing</h2>
+            <p>Du hast ein spannendes Projekt? Ich bin bereit!</p>
+            <div class="social-links">
+                <a href="https://github.com" class="social-link" target="_blank">GH</a>
+                <a href="https://linkedin.com" class="social-link" target="_blank">LI</a>
+                <a href="https://twitter.com" class="social-link" target="_blank">TW</a>
+                <a href="mailto:hello@example.com" class="social-link">@</a>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>© 2026 Portfolio Template • Open Source</p>
+    </footer>
+
+    <script>
+        // ============ CUSTOM CURSOR ============
+        const cursor = document.getElementById('cursor');
+        const cursorDot = document.getElementById('cursorDot');
+
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX - 15 + 'px';
+            cursor.style.top = e.clientY - 15 + 'px';
+            cursorDot.style.left = e.clientX - 3 + 'px';
+            cursorDot.style.top = e.clientY - 3 + 'px';
+        });
+
+        document.addEventListener('mousedown', () => {
+            cursor.style.transform = 'scale(0.7)';
+            cursorDot.style.transform = 'scale(2)';
+        });
+
+        document.addEventListener('mouseup', () => {
+            cursor.style.transform = 'scale(1)';
+            cursorDot.style.transform = 'scale(1)';
+        });
+
+        const hoverTargets = document.querySelectorAll('a, button, .project-card, .social-link');
+        hoverTargets.forEach(el => {
+            el.addEventListener('mouseenter', () => cursor.classList.add('hover'));
+            el.addEventListener('mouseleave', () => cursor.classList.remove('hover'));
+        });
+
+        // ============ MOBILE MENU ============
+        const menuToggle = document.getElementById('menuToggle');
+        const navLinks = document.getElementById('navLinks');
+        
+        menuToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+        });
+
+        // ============ NAVIGATION SCROLL ============
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 50) {
+                navbar.classList.add('floating');
+            } else {
+                navbar.classList.remove('floating');
+            }
+        });
+
+        // ============ PROGRESS BAR CANVAS ============
+        const progressCanvas = document.getElementById('progressCanvas');
+        const progressCtx = progressCanvas.getContext('2d');
+        
+        function resizeProgressCanvas() {
+            progressCanvas.width = window.innerWidth;
+            progressCanvas.height = 4;
+        }
+        resizeProgressCanvas();
+        window.addEventListener('resize', resizeProgressCanvas);
+
+        function drawProgressBar() {
+            const scrollTop = window.pageYOffset;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const progress = scrollTop / docHeight;
+            
+            progressCtx.clearRect(0, 0, progressCanvas.width, progressCanvas.height);
+            
+            // Background
+            progressCtx.fillStyle = 'rgba(255,255,255,0.05)';
+            progressCtx.fillRect(0, 0, progressCanvas.width, 4);
+            
+            // Progress mit Gradient
+            const gradient = progressCtx.createLinearGradient(0, 0, progressCanvas.width * progress, 0);
+            gradient.addColorStop(0, '#7c3aed');
+            gradient.addColorStop(0.5, '#06b6d4');
+            gradient.addColorStop(1, '#ec4899');
+            
+            progressCtx.fillStyle = gradient;
+            progressCtx.fillRect(0, 0, progressCanvas.width * progress, 4);
+            
+            // Glow am Ende
+            progressCtx.shadowColor = '#7c3aed';
+            progressCtx.shadowBlur = 10;
+            progressCtx.fillStyle = 'white';
+            progressCtx.beginPath();
+            progressCtx.arc(progressCanvas.width * progress, 2, 4, 0, Math.PI * 2);
+            progressCtx.fill();
+            progressCtx.shadowBlur = 0;
+        }
+
+        // ============ MAIN CANVAS - KRASSE SCROLL ANIMATION ============
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const scrollSection = document.querySelector('.scroll-canvas-section');
+        const canvasOverlay = document.getElementById('canvasOverlay');
+        
+        let particles = [];
+        let shapes = [];
+
+        function resizeMainCanvas() {
+            mainCanvas.width = window.innerWidth;
+            mainCanvas.height = window.innerHeight;
+            initParticles();
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 150; i++) {
+                particles.push({
+                    x: Math.random() * mainCanvas.width,
+                    y: Math.random() * mainCanvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    size: Math.random() * 3 + 1,
+                    hue: Math.random() * 360
+                });
+            }
+        }
+
+        function drawMainCanvas(progress) {
+            const w = mainCanvas.width;
+            const h = mainCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+
+            mainCtx.clearRect(0, 0, w, h);
+
+            // Background Grid mit Perspektive
+            mainCtx.strokeStyle = `rgba(255,255,255,${0.03 + progress * 0.05})`;
+            mainCtx.lineWidth = 1;
+            const gridSize = 60;
+            const perspective = 1 + progress * 2;
+            
+            for (let i = -20; i < 40; i++) {
+                const x = i * gridSize;
+                const offsetY = Math.sin(i * 0.3 + progress * 5) * 100 * progress;
+                
+                mainCtx.beginPath();
+                mainCtx.moveTo(x, 0);
+                mainCtx.lineTo(x + offsetY * perspective, h);
+                mainCtx.stroke();
+            }
+
+            // Zentrale 3D-Form die sich morph'd
+            mainCtx.save();
+            mainCtx.translate(cx, cy);
+            
+            const rotation = progress * Math.PI * 4;
+            mainCtx.rotate(rotation);
+            
+            // Morphing zwischen Kreis und Polygon
+            const sides = Math.floor(3 + progress * 8);
+            const radius = 100 + Math.sin(progress * Math.PI * 2) * 80;
+            
+            mainCtx.beginPath();
+            for (let i = 0; i <= sides; i++) {
+                const angle = (i / sides) * Math.PI * 2;
+                const morphRadius = radius + Math.sin(i * 3 + progress * 10) * 30;
+                const x = Math.cos(angle) * morphRadius;
+                const y = Math.sin(angle) * morphRadius;
+                
+                if (i === 0) mainCtx.moveTo(x, y);
+                else mainCtx.lineTo(x, y);
+            }
+            mainCtx.closePath();
+            
+            const hue = progress * 360;
+            mainCtx.strokeStyle = `hsl(${hue}, 100%, 60%)`;
+            mainCtx.lineWidth = 3;
+            mainCtx.stroke();
+            
+            mainCtx.fillStyle = `hsla(${hue}, 100%, 60%, 0.1)`;
+            mainCtx.fill();
+            
+            mainCtx.restore();
+
+            // Innere Form (gegenläufig)
+            mainCtx.save();
+            mainCtx.translate(cx, cy);
+            mainCtx.rotate(-rotation * 1.5);
+            
+            const innerSides = Math.floor(3 + (1 - progress) * 8);
+            const innerRadius = 50 + Math.cos(progress * Math.PI * 2) * 30;
+            
+            mainCtx.beginPath();
+            for (let i = 0; i <= innerSides; i++) {
+                const angle = (i / innerSides) * Math.PI * 2;
+                const x = Math.cos(angle) * innerRadius;
+                const y = Math.sin(angle) * innerRadius;
+                if (i === 0) mainCtx.moveTo(x, y);
+                else mainCtx.lineTo(x, y);
+            }
+            mainCtx.closePath();
+            mainCtx.strokeStyle = `hsl(${(hue + 180) % 360}, 100%, 60%)`;
+            mainCtx.lineWidth = 2;
+            mainCtx.stroke();
+            mainCtx.fillStyle = `hsla(${(hue + 180) % 360}, 100%, 60%, 0.15)`;
+            mainCtx.fill();
+            mainCtx.restore();
+
+            // Partikel mit Schwarm-Verhalten
+            particles.forEach((p, i) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                
+                if (p.x < 0 || p.x > w) p.vx *= -1;
+                if (p.y < 0 || p.y > h) p.vy *= -1;
+                
+                // Magnet-Effekt zur Mitte
+                const dx = cx - p.x;
+                const dy = cy - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 300 * progress) {
+                    p.vx += dx / dist * 0.02;
+                    p.vy += dy / dist * 0.02;
+                }
+                
+                const particleHue = (p.hue + progress * 100) % 360;
+                mainCtx.fillStyle = `hsla(${particleHue}, 80%, 60%, ${0.3 + progress * 0.5})`;
+                mainCtx.beginPath();
+                mainCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                mainCtx.fill();
+            });
+
+            // Rings um die Mitte
+            for (let r = 0; r < 3; r++) {
+                const ringRadius = 200 + r * 100 + Math.sin(progress * 10 + r) * 50;
+                mainCtx.beginPath();
+                mainCtx.arc(cx, cy, ringRadius, 0, Math.PI * 2);
+                mainCtx.strokeStyle = `rgba(255,255,255,${0.03 + progress * 0.08 + r * 0.02})`;
+                mainCtx.lineWidth = 1;
+                mainCtx.setLineDash([10, 20]);
+                mainCtx.lineDashOffset = progress * 100 + r * 30;
+                mainCtx.stroke();
+                mainCtx.setLineDash([]);
+            }
+
+            // Vignette
+            const vignetteGradient = mainCtx.createRadialGradient(cx, cy, w * 0.3, cx, cy, w * 0.8);
+            vignetteGradient.addColorStop(0, 'transparent');
+            vignetteGradient.addColorStop(1, `rgba(5,5,16,${0.5 + progress * 0.3})`);
+            mainCtx.fillStyle = vignetteGradient;
+            mainCtx.fillRect(0, 0, w, h);
+        }
+
+        function updateMainCanvas() {
+            const sectionRect = scrollSection.getBoundingClientRect();
+            const sectionTop = sectionRect.top;
+            const sectionHeight = scrollSection.offsetHeight;
+            const windowHeight = window.innerHeight;
+            const scrollableDistance = sectionHeight - windowHeight;
+            
+            let progress = -sectionTop / scrollableDistance;
+            progress = Math.max(0, Math.min(1, progress));
+            
+            drawMainCanvas(progress);
+            
+            // Overlay ausblenden
+            if (progress > 0.6) {
+                canvasOverlay.style.opacity = Math.max(0, 1 - (progress - 0.6) / 0.4);
+            } else {
+                canvasOverlay.style.opacity = 1;
+            }
+        }
+
+        resizeMainCanvas();
+        window.addEventListener('resize', resizeMainCanvas);
+
+        // ============ SKILLS CANVAS - 3D ORBIT ============
+        const skillsCanvas = document.getElementById('skillsCanvas');
+        const skillsCtx = skillsCanvas.getContext('2d');
+
+        function resizeSkillsCanvas() {
+            skillsCanvas.width = 450;
+            skillsCanvas.height = 450;
+        }
+        resizeSkillsCanvas();
+
+        let skillsRotation = 0;
+
+        function drawSkillsCanvas() {
+            const w = skillsCanvas.width;
+            const h = skillsCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+
+            skillsCtx.clearRect(0, 0, w, h);
+            
+            skillsRotation += 0.003;
+
+            // 3 Orbit-Ringe
+            const rings = [
+                { radius: 150, tilt: 0.3, speed: 1, color: '#7c3aed' },
+                { radius: 110, tilt: -0.5, speed: -0.7, color: '#06b6d4' },
+                { radius: 70, tilt: 0.8, speed: 0.5, color: '#ec4899' }
+            ];
+
+            rings.forEach(ring => {
+                // Ring zeichnen (perspektivisch verzerrt)
+                skillsCtx.beginPath();
+                skillsCtx.ellipse(cx, cy, ring.radius, ring.radius * Math.abs(Math.cos(ring.tilt)), 
+                    skillsRotation * ring.speed, 0, Math.PI * 2);
+                skillsCtx.strokeStyle = ring.color;
+                skillsCtx.lineWidth = 1.5;
+                skillsCtx.globalAlpha = 0.4;
+                skillsCtx.stroke();
+                skillsCtx.globalAlpha = 1;
+
+                // Orbiting Punkt
+                const angle = skillsRotation * ring.speed;
+                const px = cx + Math.cos(angle) * ring.radius;
+                const py = cy + Math.sin(angle) * ring.radius * Math.cos(ring.tilt);
+                
+                skillsCtx.beginPath();
+                skillsCtx.arc(px, py, 6, 0, Math.PI * 2);
+                skillsCtx.fillStyle = ring.color;
+                skillsCtx.fill();
+                skillsCtx.shadowColor = ring.color;
+                skillsCtx.shadowBlur = 20;
+                skillsCtx.fill();
+                skillsCtx.shadowBlur = 0;
+
+                // Verbindungslinie zum Zentrum
+                skillsCtx.beginPath();
+                skillsCtx.moveTo(cx, cy);
+                skillsCtx.lineTo(px, py);
+                skillsCtx.strokeStyle = ring.color;
+                skillsCtx.globalAlpha = 0.15;
+                skillsCtx.stroke();
+                skillsCtx.globalAlpha = 1;
+            });
+
+            // Zentrum
+            const centerGradient = skillsCtx.createRadialGradient(cx, cy, 0, cx, cy, 20);
+            centerGradient.addColorStop(0, '#ffffff');
+            centerGradient.addColorStop(1, '#7c3aed');
+            skillsCtx.beginPath();
+            skillsCtx.arc(cx, cy, 8, 0, Math.PI * 2);
+            skillsCtx.fillStyle = centerGradient;
+            skillsCtx.fill();
+            skillsCtx.shadowColor = '#7c3aed';
+            skillsCtx.shadowBlur = 30;
+            skillsCtx.fill();
+            skillsCtx.shadowBlur = 0;
+
+            requestAnimationFrame(drawSkillsCanvas);
+        }
+        drawSkillsCanvas();
+
+        // ============ ABOUT CANVAS - MORPHING BLOB ============
+        const aboutCanvas = document.getElementById('aboutCanvas');
+        const aboutCtx = aboutCanvas.getContext('2d');
+
+        function resizeAboutCanvas() {
+            aboutCanvas.width = 400;
+            aboutCanvas.height = 400;
+        }
+        resizeAboutCanvas();
+
+        let aboutTime = 0;
+
+        function drawAboutCanvas() {
+            const w = aboutCanvas.width;
+            const h = aboutCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+
+            aboutCtx.clearRect(0, 0, w, h);
+            aboutTime += 0.01;
+
+            // Morphing Blob
+            const points = 8;
+            aboutCtx.beginPath();
+            
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * Math.PI * 2;
+                const noise = Math.sin(angle * 3 + aboutTime) * 40 + 
+                              Math.cos(angle * 2 + aboutTime * 0.7) * 30 +
+                              Math.sin(angle * 5 + aboutTime * 1.3) * 20;
+                const radius = 120 + noise;
+                const x = cx + Math.cos(angle) * radius;
+                const y = cy + Math.sin(angle) * radius;
+                
+                if (i === 0) aboutCtx.moveTo(x, y);
+                else aboutCtx.lineTo(x, y);
+            }
+            
+            aboutCtx.closePath();
+            
+            const blobGradient = aboutCtx.createRadialGradient(cx, cy, 0, cx, cy, 150);
+            blobGradient.addColorStop(0, '#7c3aed');
+            blobGradient.addColorStop(0.5, '#06b6d4');
+            blobGradient.addColorStop(1, '#ec4899');
+            
+            aboutCtx.fillStyle = blobGradient;
+            aboutCtx.globalAlpha = 0.8;
+            aboutCtx.fill();
+            aboutCtx.globalAlpha = 0.3;
+            aboutCtx.strokeStyle = 'white';
+            aboutCtx.lineWidth = 2;
+            aboutCtx.stroke();
+            aboutCtx.globalAlpha = 1;
+
+            // Innere Kreise die pulsieren
+            for (let i = 0; i < 3; i++) {
+                const pulseRadius = 30 + Math.sin(aboutTime * 2 + i) * 15;
+                aboutCtx.beginPath();
+                aboutCtx.arc(cx, cy, pulseRadius + i * 40, 0, Math.PI * 2);
+                aboutCtx.strokeStyle = `rgba(255,255,255,${0.2 - i * 0.05})`;
+                aboutCtx.lineWidth = 0.5;
+                aboutCtx.stroke();
+            }
+
+            requestAnimationFrame(drawAboutCanvas);
+        }
+        drawAboutCanvas();
+
+        // ============ MOUSE TRACKING FÜR PROJECT CARDS ============
+        document.querySelectorAll('[data-mouse-track]').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                card.style.setProperty('--mouse-x', x + '%');
+                card.style.setProperty('--mouse-y', y + '%');
+            });
+        });
+
+        // ============ SKILL BARS ANIMATION ============
+        const skillObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const fills = entry.target.querySelectorAll('.skill-bar-fill');
+                    fills.forEach(fill => {
+                        const width = fill.getAttribute('data-width');
+                        setTimeout(() => {
+                            fill.style.width = width + '%';
+                        }, 200);
+                    });
+                }
+            });
+        }, { threshold: 0.3 });
+
+        document.querySelectorAll('.skills-content').forEach(el => skillObserver.observe(el));
+
+        // ============ GLOBAL SCROLL HANDLER ============
+        let ticking = false;
+        
+        function globalScrollHandler() {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    updateMainCanvas();
+                    drawProgressBar();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        }
+
+        window.addEventListener('scroll', globalScrollHandler, { passive: true });
+        window.addEventListener('resize', () => {
+            resizeMainCanvas();
+            resizeProgressCanvas();
+            resizeSkillsCanvas();
+            resizeAboutCanvas();
+            updateMainCanvas();
+            drawProgressBar();
+        });
+
+        // ============ INIT ============
+        updateMainCanvas();
+        drawProgressBar();
+
+        console.log('🔥 Portfolio Template Ready - Scroll Animation 3D!');
+        console.log('✨ Alle Animationen generiert ohne externe Assets');
+        console.log('🎨 Pure Canvas Magic + CSS 3D');
+        console.log('📦 Einfach clonen, anpassen, deployen!');
+    </script>
+</body>
+</html>
